@@ -1,0 +1,135 @@
+const Order = require("../models/OrderModel");
+const ErrorHandler = require("../utils/ErrorHandler.js");
+const catchAsyncErrors = require("../middleware/catchAsyncError");
+const Product = require("../models/ProductModel");
+const { constants } = require("../constants");
+
+// Create Order
+exports.createOrder = catchAsyncErrors(async (req,res) =>{
+
+    const {
+        shippingInfo,
+        orderItems,
+        paymentInfo,
+        itemsPrice,
+        taxPrice,
+        shippingPrice,
+        totalPrice,
+    } = req.body;
+
+    const order = await Order.create({
+        shippingInfo,
+        orderItems,
+        paymentInfo,
+        itemsPrice,
+        taxPrice,
+        shippingPrice,
+        totalPrice,
+        paidAt:Date.now(),
+        user: req.user._id,
+    });
+
+    res.status(constants.SUCCESSFUL_POST).json({
+        success: true,
+        order
+    });
+});
+
+//  Get Single order
+exports.getSingleOrder = catchAsyncErrors(async (req,res,next) =>{
+    const order = await Order.findById(req.params.id).populate(
+        "user",
+        "name email"
+    );
+
+    if(!order){
+        return next(new ErrorHandler("Order not found with this id",constants.NOT_FOUND));
+    }
+
+    res.status(constants.SUCCESSFUL_REQUEST).json({
+        success: true,
+        order
+    });
+});
+
+// Get all orders
+exports.getAllOrders = catchAsyncErrors(async (req,res) =>{
+    const orders = await Order.find({user: req.user._id});
+    res.status(constants.SUCCESSFUL_REQUEST).json({
+        success: true,
+        orders
+    });
+});
+
+// Get All orders ---Admin
+exports.getAdminAllOrders = catchAsyncErrors(async (req,res) =>{
+    const orders = await Order.find();
+
+    let totalAmount = 0;
+
+    orders.forEach((order) =>{
+        totalAmount += order.totalPrice;
+    });
+
+    res.status(constants.SUCCESSFUL_REQUEST).json({
+        success: true,
+        totalAmount,
+        orders
+    });
+});
+
+// update Order Status ---Admin
+exports.updateAdminOrder = catchAsyncErrors(async (req, res, next) => {
+
+    const order = await Order.findById(req.params.id);
+  
+    if (!order) {
+      return next(new ErrorHandler("Order not found with this Id", constants.NOT_FOUND));
+    }
+  
+    if (order.orderStatus === "Delivered") {
+      return next(new ErrorHandler("You have already delivered this order", constants.VALIDATION_ERROR));
+    }
+  
+    if (req.body.status === "Shipped") {
+      order.orderItems.forEach(async (orderItem) => {
+        await updateStock(orderItem.product, orderItem.quantity);
+      });
+    }
+    order.orderStatus = req.body.status;
+  
+    if (req.body.status === "Delivered") {
+      order.deliveredAt = Date.now();
+    }
+  
+    await order.save({ validateBeforeSave: false });
+    res.status(constants.SUCCESSFUL_REQUEST).json({
+      success: true,
+    });
+  });
+  
+  async function updateStock(id, quantity) {
+      
+    const product = await Product.findById(id);
+  
+    product.Stock -= quantity;
+  
+    await product.save({ validateBeforeSave: false });
+  }
+
+
+// delete Order ---Admin
+exports.deleteOrder = catchAsyncErrors(async (req,res,next) =>{
+
+    const order = await Order.findById(req.params.id);
+    
+    if(!order){
+      return next(new ErrorHandler("Order not found with this Id", constants.NOT_FOUND));
+    }
+
+    await order.deleteOne();
+
+    res.status(constants.SUCCESSFUL_REQUEST).json({
+        success: true,
+    });
+});

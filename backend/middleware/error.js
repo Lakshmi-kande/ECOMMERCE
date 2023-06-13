@@ -11,7 +11,24 @@ module.exports = (err,req,res,next) =>{
         const message = `Resources not found with this id..Invalid ${err.path}`;
         err = new ErrorHandler(message, constants.VALIDATION_ERROR);
     }
-  
+
+        // Duplicate key error
+    if (err.code === 11000) {
+        const message = `Duplicate ${Object.keys(err.keyValue)} Entered`;
+        err = new ErrorHandler(message, constants.VALIDATION_ERROR);
+    }
+
+     // Wrong Jwt error
+    if (err.name === "JsonWebTokenError") {
+        const message = `Your url is invalid please try again`;
+        err = new ErrorHandler(message, constants.VALIDATION_ERROR);
+    }
+
+      //Jwt expired error
+    if (err.name === "TokenExpiredError") {
+        const message = `Your url is expired please try again`;
+        err = new ErrorHandler(message, constants.VALIDATION_ERROR);
+    }
 
     res.status(err.statusCode).json({
         success: false,

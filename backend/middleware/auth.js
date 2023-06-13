@@ -1,8 +1,8 @@
-/* eslint-disable no-undef */
 const ErrorHandler = require("../utils/ErrorHandler");
 const catchAsyncErrors = require("./catchAsyncError");
 const jwt = require("jsonwebtoken");
 const User = require("../models/UserModel");
+const { constants } = require("../constants");
 
 
 exports.isAuthenticatedUser = catchAsyncErrors(async (req,res,next) =>{
